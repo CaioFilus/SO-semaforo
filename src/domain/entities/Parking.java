@@ -13,11 +13,11 @@ public class Parking implements OnCarParkingTimeout {
 
     private Optional<OnParkingChange> onParkingChange = Optional.empty();
 
+    public boolean isRunning = false;
     private final Semaphore inSemaphore = new Semaphore(1);
     private final Semaphore outSemaphore = new Semaphore(1);
-
     private final Optional<Car>[][] vacancies = (Optional<Car>[][]) new Optional<?>[10][10];
-
+    private ParkingStats parkingStats = new ParkingStats();
     private final List<CarBarrier> barriers;
     public Parking() {
         this.barriers = new ArrayList<>();
@@ -31,17 +31,35 @@ public class Parking implements OnCarParkingTimeout {
     public void addBarrier(CarBarrier carBarrier){
         this.barriers.add(carBarrier);
     }
+    public void removeBarriers(){
+        this.barriers.clear();
+    }
+    public ParkingStats getStats(){
+        return this.parkingStats;
+    }
 
     public void startWorking() {
+        parkingStats.awaitingCars = 0;
+        parkingStats.totalCars = 0;
+        this.isRunning = true;
         this.barriers.forEach(CarBarrier::start);
+    }
+
+    public void stopSimulation() {
+        this.isRunning = false;
+        this.barriers.forEach(CarBarrier::stopWork);
     }
 
     void fillVacancy(Car car, CarBarrier carBarrier){
         try {
+            if(inSemaphore.hasQueuedThreads()) parkingStats.awaitingCars ++;
+            parkingStats.totalCars++;
+
+
             inSemaphore.acquire();
             Optional<Coordinate> freeVacancyCoordinate = this.findFreeVacancy();
             while(!freeVacancyCoordinate.isPresent()){
-                Thread.sleep(2000);
+                Thread.sleep(500);
                 freeVacancyCoordinate = this.findFreeVacancy();
             }
             Coordinate coordinate = freeVacancyCoordinate.get();
@@ -69,6 +87,10 @@ public class Parking implements OnCarParkingTimeout {
             outSemaphore.release();
         }
         this.onParkingChange.ifPresent(event -> event.onParkingChange(this));
+        if(this.isSimulationEnd()){
+            this.isRunning = false;
+            this.onParkingChange.ifPresent(event -> event.onSimulationEnd(this));
+        }
     }
 
     public void setOnParkingChangeEventListener(OnParkingChange listener){
@@ -101,10 +123,24 @@ public class Parking implements OnCarParkingTimeout {
         return Optional.empty();
     }
 
+    private boolean isSimulationEnd() {
+        for(Optional<Car>[] vacanciesRow: this.vacancies){
+            for(Optional<Car> vacancy: vacanciesRow) {
+                if(vacancy.isPresent()) return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void onCarParkingTimeout(Car car) {
         this.releaseVacancy(car);
     }
 
+
+    public static class ParkingStats {
+        public int totalCars = 0;
+        public int awaitingCars = 0;
+    }
 
 }

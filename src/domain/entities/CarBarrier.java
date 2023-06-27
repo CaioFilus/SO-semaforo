@@ -1,7 +1,5 @@
 package domain.entities;
 
-import domain.entities.Car;
-
 import java.util.*;
 
 public class CarBarrier extends Thread {
@@ -9,22 +7,29 @@ public class CarBarrier extends Thread {
     int id;
     Parking parking;
     Queue<Car> awaitingCars = new LinkedList<>();
-    Queue<Car> availableCars = new LinkedList<>();
+    Car.CarQueue availableCars;
     float newIncomeCarsSeconds;
 
+    boolean isRunning;
 
-    public CarBarrier(Queue<Car> availableCars, Parking parking, int id,float newIncomeCarsSeconds){
+
+    public CarBarrier(Car.CarQueue availableCars, Parking parking, int id, float newIncomeCarsSeconds){
         this.availableCars = availableCars;
         this.newIncomeCarsSeconds = newIncomeCarsSeconds;
         this.id = id;
         this.parking = parking;
     }
 
+
+    public void stopWork() {
+        this.isRunning = false;
+    }
     @Override
     public void run() {
         super.run();
+        this.isRunning = true;
         Optional<Car> maybeCar = Optional.ofNullable(this.availableCars.poll());
-        while(maybeCar.isPresent()) {
+        while(maybeCar.isPresent() && this.isRunning) {
             Car car = maybeCar.get();
             try {
                 Thread.sleep(Math.round(Math.random() * this.newIncomeCarsSeconds * 1000));

@@ -16,6 +16,12 @@ public class Input extends JPanel {
         this.add(textField,BorderLayout.CENTER);
     }
 
+    public void setText(String text) {
+        this.textField.setText(text);
+    }
+    public String getText() {
+        return this.textField.getText();
+    }
     @Override
     public synchronized void addMouseListener(MouseListener l) {
         this.textField.addMouseListener(l);
